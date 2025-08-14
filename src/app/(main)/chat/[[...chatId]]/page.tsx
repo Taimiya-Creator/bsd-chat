@@ -21,7 +21,6 @@ import {
   doc,
   setDoc,
   getDoc,
-  collectionGroup,
 } from 'firebase/firestore';
 import { Menu, Paperclip, Send } from 'lucide-react';
 import { useEffect, useState, useRef, useMemo } from 'react';
@@ -140,7 +139,7 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     };
 
     try {
-        if (isDm && dmId) {
+        if (isDm && dmId && dmPartnerId) {
             const dmDocRef = doc(db, 'dms', dmId);
             const dmDocSnap = await getDoc(dmDocRef);
             if(!dmDocSnap.exists()){
@@ -313,3 +312,5 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     </div>
   );
 }
+
+    
