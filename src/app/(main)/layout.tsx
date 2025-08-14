@@ -48,33 +48,43 @@ export default function MainLayout({
   useEffect(() => {
     const fetchUserData = async () => {
       if (firebaseUser) {
-        const docRef = doc(db, 'users', firebaseUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setAppUser({
-            name: data.displayName || 'User',
-            email: firebaseUser.email,
-            role: data.role || 'Student',
-          });
-        } else {
-          // Fallback if user doc doesn't exist, use auth profile
-          setAppUser({
-            name: firebaseUser.displayName || 'User',
-            email: firebaseUser.email,
-            role: 'Student', // Default role
-          });
+        try {
+          const docRef = doc(db, 'users', firebaseUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setAppUser({
+              name: data.displayName || 'User',
+              email: firebaseUser.email,
+              role: data.role || 'Student',
+            });
+          } else {
+            // Fallback if user doc doesn't exist, use auth profile
+            setAppUser({
+              name: firebaseUser.displayName || 'User',
+              email: firebaseUser.email,
+              role: 'Student', // Default role
+            });
+          }
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+            // Handle error, maybe show a toast or log out user
+            setAppUser(null);
+        } finally {
+            setLoadingUser(false);
         }
       } else {
+        // No firebaseUser, so not loading user data
+        setLoadingUser(false);
         setAppUser(null);
       }
-      setLoadingUser(false);
     };
 
     fetchUserData();
   }, [firebaseUser]);
 
   useEffect(() => {
+    // Redirect logic should run when auth state is resolved and there's no user
     if (!loadingAuth && !firebaseUser) {
       if (pathname !== '/login' && pathname !== '/signup') {
         redirect('/login');
@@ -86,7 +96,7 @@ export default function MainLayout({
   async function handleLogout() {
     try {
       await signOut(auth);
-      redirect('/login');
+      // The redirection will be handled by the effect above
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -102,9 +112,19 @@ export default function MainLayout({
     );
   }
 
-  if (!appUser) {
-    // Auth hook handles redirection, so this prevents rendering children without a user
+  // After loading, if there's no user and we're not on a public page, let the redirect effect handle it.
+  // This prevents rendering children while redirection is pending.
+  if (!firebaseUser) {
     return null;
+  }
+  
+  // This should only happen if user data somehow fails to load but they are authenticated.
+  if (!appUser) {
+     return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
+      </div>
+    );
   }
 
   return (
