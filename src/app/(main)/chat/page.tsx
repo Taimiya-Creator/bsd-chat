@@ -6,9 +6,36 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useToast } from '@/hooks/use-toast';
+import { auth, db } from '@/lib/firebase';
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  onSnapshot,
+  query,
+  orderBy,
+  Timestamp,
+} from 'firebase/firestore';
 import { Menu, Paperclip, Send } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { useAuthState } from 'react-firebase-hooks/auth';
+
+interface Message {
+  id: string;
+  text: string;
+  sender: string;
+  senderId: string;
+  timestamp: Timestamp;
+}
 
 export default function ChatPage() {
+  const [user] = useAuthState(auth);
+  const { toast } = useToast();
+  const [newMessage, setNewMessage] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const channels = ['# general', '# announcements', '# random'];
   const teachers = [
     { name: 'Mr. Smith', online: true },
@@ -21,27 +48,60 @@ export default function ChatPage() {
     { name: 'Charlie', online: true },
   ];
 
-  const messages = [
-    {
-      sender: 'Mr. Smith',
-      avatar: 'https://placehold.co/32x32.png',
-      message:
-        'Hello class, just a reminder that your projects are due this Friday. Please make sure to submit them on time. Let me know if you have any questions!',
-      timestamp: '2:15 PM',
-    },
-    {
-      sender: 'Alice',
-      avatar: 'https://placehold.co/32x32.png',
-      message: 'Thanks for the reminder, Mr. Smith!',
-      timestamp: '2:16 PM',
-    },
-    {
-      sender: 'You',
-      avatar: 'https://placehold.co/32x32.png',
-      message: 'Got it. I should be able to finish it tonight.',
-      timestamp: '2:17 PM',
-    },
-  ];
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const msgs = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Message[];
+        setMessages(msgs);
+      },
+      (error) => {
+        console.error('Error fetching messages:', error);
+        toast({
+          title: 'Error',
+          description: 'Could not fetch messages.',
+          variant: 'destructive',
+        });
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, toast]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMessage.trim() === '' || !user) return;
+
+    try {
+      await addDoc(collection(db, 'messages'), {
+        text: newMessage,
+        sender: user.displayName || 'Anonymous',
+        senderId: user.uid,
+        timestamp: serverTimestamp(),
+      });
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not send message.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const sidebarContent = (
     <>
@@ -120,57 +180,61 @@ export default function ChatPage() {
         </header>
         <div className="flex-1 overflow-auto p-4">
           <div className="space-y-4">
-            {messages.map((msg, index) => (
+            {messages.map((msg) => (
               <div
-                key={index}
+                key={msg.id}
                 className={`flex items-start gap-4 ${
-                  msg.sender === 'You' ? 'justify-end' : ''
+                  msg.senderId === user?.uid ? 'justify-end' : ''
                 }`}
               >
-                {msg.sender !== 'You' && (
+                {msg.senderId !== user?.uid && (
                   <Avatar>
-                    <AvatarImage src={msg.avatar} data-ai-hint="avatar" />
+                    <AvatarImage src={'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
                     <AvatarFallback>{msg.sender.charAt(0)}</AvatarFallback>
                   </Avatar>
                 )}
                 <div
                   className={`rounded-lg p-3 max-w-xs sm:max-w-md md:max-w-lg ${
-                    msg.sender === 'You'
+                    msg.senderId === user?.uid
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted'
                   }`}
                 >
-                  <p className="font-semibold">{msg.sender}</p>
-                  <p className="break-words">{msg.message}</p>
+                  <p className="font-semibold">{msg.senderId === user?.uid ? 'You' : msg.sender}</p>
+                  <p className="break-words">{msg.text}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {msg.timestamp}
+                    {msg.timestamp?.toDate().toLocaleTimeString()}
                   </p>
                 </div>
-                {msg.sender === 'You' && (
+                {msg.senderId === user?.uid && (
                   <Avatar>
-                    <AvatarImage src={msg.avatar} data-ai-hint="avatar" />
+                    <AvatarImage src={'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
                     <AvatarFallback>Y</AvatarFallback>
                   </Avatar>
                 )}
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         </div>
         <div className="border-t bg-background p-4">
-          <div className="relative">
+          <form onSubmit={handleSendMessage} className="relative">
             <Input
               placeholder="Type a message..."
               className="pr-20"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              autoComplete="off"
             />
             <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" type="button">
                 <Paperclip className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" type="submit">
                 <Send className="h-5 w-5" />
               </Button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import {
   Bell,
@@ -25,6 +26,7 @@ import {
 import Link from 'next/link';
 import { redirect, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 type AppUser = {
   name: string;
@@ -37,41 +39,48 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [firebaseUser, loadingAuth] = useAuthState(auth);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
   const pathname = usePathname();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+    const fetchUserData = async () => {
       if (firebaseUser) {
         const docRef = doc(db, 'users', firebaseUser.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setUser({
+          setAppUser({
             name: data.displayName || 'User',
             email: firebaseUser.email,
             role: data.role || 'Student',
           });
         } else {
-          // Fallback if user doc doesn't exist
-          setUser({
+          // Fallback if user doc doesn't exist, use auth profile
+          setAppUser({
             name: firebaseUser.displayName || 'User',
             email: firebaseUser.email,
-            role: 'Student',
+            role: 'Student', // Default role
           });
         }
       } else {
-        setUser(null);
-        if (pathname !== '/login' && pathname !== '/signup') {
-            redirect('/login');
-        }
+        setAppUser(null);
       }
-      setLoading(false);
-    });
+      setLoadingUser(false);
+    };
 
-    return () => unsubscribe();
-  }, [pathname]);
+    fetchUserData();
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    if (!loadingAuth && !firebaseUser) {
+      if (pathname !== '/login' && pathname !== '/signup') {
+        redirect('/login');
+      }
+    }
+  }, [loadingAuth, firebaseUser, pathname]);
 
 
   async function handleLogout() {
@@ -83,7 +92,9 @@ export default function MainLayout({
     }
   }
 
-  if (loading) {
+  const isLoading = loadingAuth || loadingUser;
+
+  if (isLoading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
@@ -91,8 +102,8 @@ export default function MainLayout({
     );
   }
 
-  if (!user) {
-    // onAuthStateChanged will redirect, so we can return null or a redirect component
+  if (!appUser) {
+    // Auth hook handles redirection, so this prevents rendering children without a user
     return null;
   }
 
@@ -176,11 +187,11 @@ export default function MainLayout({
                 <Avatar>
                   <AvatarImage
                     src="https://placehold.co/32x32.png"
-                    alt="@shadcn"
+                    alt="User avatar"
                     data-ai-hint="avatar"
                   />
                   <AvatarFallback>
-                    {user.name
+                    {appUser.name
                       .split(' ')
                       .map((n) => n[0])
                       .join('')}
@@ -189,9 +200,9 @@ export default function MainLayout({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
+              <DropdownMenuLabel>{appUser.name}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>{user.role}</DropdownMenuItem>
+              <DropdownMenuItem>{appUser.role}</DropdownMenuItem>
               <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">Logout</DropdownMenuItem>
             </DropdownMenuContent>
