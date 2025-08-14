@@ -183,6 +183,9 @@ export default function SignupPage() {
           </CardFooter>
         </form>
       </Card>
+      <p className="mt-4 text-center text-sm text-muted-foreground">
+        Designed by Zenova (Taimiya Amjad)
+      </p>
     </div>
   );
 }
