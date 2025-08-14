@@ -11,12 +11,25 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { firebaseApp } from '@/lib/firebase';
 
 export default function LoginPage() {
-  async function login() {
+  async function login(formData: FormData) {
     'use server';
-    // This is where you would add your authentication logic.
-    // For now, we'll just redirect to the chat page.
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const auth = getAuth(firebaseApp);
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // This is where you would add your authentication logic.
+      // For now, we'll just redirect to the chat page.
+    } catch (error) {
+      // For now, we'll log the error and redirect.
+      // In a real app, you would show an error message to the user.
+      console.error('Login failed:', error);
+    }
     redirect('/chat');
   }
 
@@ -35,6 +48,7 @@ export default function LoginPage() {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="m@example.com"
                 required
@@ -43,7 +57,13 @@ export default function LoginPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required defaultValue="password" />
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                defaultValue="password"
+              />
             </div>
           </CardContent>
           <CardFooter className="flex-col gap-4">

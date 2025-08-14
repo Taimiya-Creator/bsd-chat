@@ -18,12 +18,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { firebaseApp } from '@/lib/firebase';
+import { doc, getFirestore, setDoc } from 'firebase/firestore';
 
 export default function SignupPage() {
-  async function signup() {
+  async function signup(formData: FormData) {
     'use server';
-    // This is where you would add your signup logic with Firebase.
-    // For now, we'll just redirect to the chat page.
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const fullName = formData.get('full-name') as string;
+    const role = formData.get('role') as string;
+
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      // Now save user info to Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: fullName,
+        role: role,
+      });
+    } catch (error) {
+      console.error('Signup failed:', error);
+      // In a real app, handle this error more gracefully
+    }
+
     redirect('/chat');
   }
 
@@ -40,12 +69,18 @@ export default function SignupPage() {
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="full-name">Full Name</Label>
-              <Input id="full-name" placeholder="John Doe" required />
+              <Input
+                id="full-name"
+                name="full-name"
+                placeholder="John Doe"
+                required
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="m@example.com"
                 required
@@ -53,11 +88,11 @@ export default function SignupPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required />
+              <Input id="password" name="password" type="password" required />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Role</Label>
-              <Select name="role" required>
+              <Select name="role" required defaultValue="student">
                 <SelectTrigger id="role">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>

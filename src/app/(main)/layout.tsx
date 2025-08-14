@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { firebaseApp } from '@/lib/firebase';
+import { getAuth, signOut } from 'firebase/auth';
 import {
   Bell,
   Home,
@@ -36,6 +38,8 @@ export default function MainLayout({
 
   async function logout() {
     'use server';
+    const auth = getAuth(firebaseApp);
+    await signOut(auth);
     redirect('/login');
   }
 
@@ -136,7 +140,7 @@ export default function MainLayout({
               <DropdownMenuItem>{user.role}</DropdownMenuItem>
               <DropdownMenuSeparator />
               <form action={logout}>
-                <Button type="submit" variant="ghost" className="w-full">
+                <Button type="submit" variant="ghost" className="w-full justify-start font-normal p-0">
                   <DropdownMenuItem>Logout</DropdownMenuItem>
                 </Button>
               </form>
