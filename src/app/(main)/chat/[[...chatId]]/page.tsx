@@ -39,11 +39,13 @@ interface User {
     id: string;
     displayName: string;
     role: string;
+    class?: number;
     online?: boolean; // You can extend this later with presence detection
 }
 
 export default function ChatPage({ params }: { params: { chatId?: string[] } }) {
   const [user, loading] = useAuthState(auth);
+  const [appUser, setAppUser] = useState<User | null>(null);
   const { toast } = useToast();
   const [newMessage, setNewMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -52,19 +54,40 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [chatPartner, setChatPartner] = useState<User | null>(null);
 
-  const isDm = useMemo(() => params.chatId && params.chatId.length > 0, [params.chatId]);
-  const dmPartnerId = useMemo(() => isDm ? params.chatId![0] : null, [isDm, params.chatId]);
+  const channelId = useMemo(() => params.chatId?.[0], [params.chatId]);
+  const isDm = useMemo(() => params.chatId && params.chatId.length > 1 && params.chatId[0] === 'dm', [params.chatId]);
+  const isClassChat = useMemo(() => params.chatId && params.chatId.length === 1 && params.chatId[0].startsWith('class-'), [params.chatId]);
+  
+  const dmPartnerId = useMemo(() => isDm ? params.chatId![1] : null, [isDm, params.chatId]);
   const dmId = useMemo(() => {
     if (!isDm || !user) return null;
     return [user.uid, dmPartnerId].sort().join('_');
   }, [isDm, user, dmPartnerId]);
 
 
-  const channels = ['# general']; // Only general chat for now
+  const channels = useMemo(() => {
+    const baseChannels = ['# general'];
+    if (appUser?.class) {
+      baseChannels.push(`# class-${appUser.class}`);
+    }
+    return baseChannels;
+  }, [appUser]);
+
+  useEffect(() => {
+    if(user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        const unsubscribe = onSnapshot(userDocRef, (doc) => {
+            if(doc.exists()) {
+                setAppUser({id: doc.id, ...doc.data()} as User);
+            }
+        });
+        return () => unsubscribe();
+    }
+  }, [user]);
 
   useEffect(() => {
       if(!user) return;
-      const usersQuery = query(collection(db, "users"), where("uid", "!=", user.uid));
+      const usersQuery = query(collection(db, "users"), where("id", "!=", user.uid));
       const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
           const usersData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as User);
           setAllUsers(usersData);
@@ -101,6 +124,8 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     let messagesQuery;
     if (isDm && dmId) {
         messagesQuery = query(collection(db, 'dms', dmId, 'messages'), orderBy('timestamp', 'asc'));
+    } else if (isClassChat && channelId) {
+        messagesQuery = query(collection(db, 'classes', channelId, 'messages'), orderBy('timestamp', 'asc'));
     } else {
         messagesQuery = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
     }
@@ -125,7 +150,7 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     );
 
     return () => unsubscribe();
-  }, [user, toast, isDm, dmId]);
+  }, [user, toast, isDm, dmId, isClassChat, channelId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,7 +159,7 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     const messageData = {
         text: newMessage,
         senderId: user.uid,
-        senderName: user.displayName || 'Anonymous', // This ensures name is never null
+        senderName: user.displayName || 'Anonymous', 
         timestamp: serverTimestamp(),
     };
 
@@ -149,6 +174,16 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
                 });
             }
             await addDoc(collection(db, 'dms', dmId, 'messages'), messageData);
+        } else if (isClassChat && channelId) {
+            const classDocRef = doc(db, 'classes', channelId);
+            const classDocSnap = await getDoc(classDocRef);
+            if (!classDocSnap.exists()) {
+                await setDoc(classDocRef, {
+                    name: channelId,
+                    createdAt: serverTimestamp()
+                });
+            }
+            await addDoc(collection(db, 'classes', channelId, 'messages'), messageData);
         } else {
              await addDoc(collection(db, 'messages'), messageData);
         }
@@ -163,7 +198,7 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     }
   };
 
-  if (loading) {
+  if (loading || !appUser) {
     return null; // The layout will show a spinner
   }
 
@@ -178,11 +213,15 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
         </CardHeader>
         <CardContent>
           <nav className="grid gap-2">
-            {channels.map((channel) => (
-              <Button asChild key={channel} variant={!isDm ? 'secondary' : 'ghost'} className="justify-start">
-                <Link href="/chat">{channel}</Link>
-              </Button>
-            ))}
+            {channels.map((channel) => {
+              const channelSlug = channel.replace('# ', '');
+              const isActive = !isDm && (channelSlug === 'general' ? !channelId : channelId === channelSlug);
+              return (
+                <Button asChild key={channel} variant={isActive ? 'secondary' : 'ghost'} className="justify-start">
+                  <Link href={`/chat/${channelSlug === 'general' ? '' : channelSlug}`}>{channel}</Link>
+                </Button>
+              )
+            })}
           </nav>
         </CardContent>
       </Card>
@@ -196,7 +235,7 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
               variant={dmPartnerId === teacher.id ? 'secondary' : 'ghost'}
               className="justify-start gap-2"
             >
-              <Link href={`/chat/${teacher.id}`}>
+              <Link href={`/chat/dm/${teacher.id}`}>
                 <div className="h-2 w-2 rounded-full bg-gray-500" />
                 {teacher.displayName}
               </Link>
@@ -212,7 +251,7 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
               variant={dmPartnerId === student.id ? 'secondary' : 'ghost'}
               className="justify-start gap-2"
             >
-              <Link href={`/chat/${student.id}`}>
+              <Link href={`/chat/dm/${student.id}`}>
                 <div className="h-2 w-2 rounded-full bg-gray-500" />
                 {student.displayName}
               </Link>
@@ -223,7 +262,13 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     </>
   );
 
-  const currentChatName = isDm ? (chatPartner?.displayName || 'Direct Message') : '# general';
+  let currentChatName = '# general';
+  if (isDm) {
+    currentChatName = chatPartner?.displayName || 'Direct Message';
+  } else if (isClassChat) {
+    currentChatName = `# ${channelId}`;
+  }
+
 
   return (
     <div className="grid h-[calc(100vh-theme(spacing.16))] md:grid-cols-[280px_1fr]">
@@ -312,5 +357,3 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     </div>
   );
 }
-
-    

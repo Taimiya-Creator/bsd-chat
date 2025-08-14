@@ -14,6 +14,13 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { firebaseApp, db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
@@ -27,6 +34,7 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
   const role = 'student'; // All new signups are students
 
   useEffect(() => {
@@ -40,10 +48,18 @@ export default function SignupPage() {
     e.preventDefault();
     const auth = getAuth(firebaseApp);
 
-    if (!auth.currentUser && fullName.trim() === '') {
+    if (fullName.trim() === '') {
         toast({
           title: 'Signup Failed',
           description: 'Full name is required.',
+          variant: 'destructive',
+        });
+        return;
+    }
+    if (selectedClass === '') {
+        toast({
+          title: 'Signup Failed',
+          description: 'Please select your class.',
           variant: 'destructive',
         });
         return;
@@ -66,6 +82,7 @@ export default function SignupPage() {
         email: user.email,
         displayName: fullName,
         role: role,
+        class: parseInt(selectedClass, 10),
       });
 
       toast({
@@ -124,6 +141,21 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="class">Class</Label>
+              <Select onValueChange={setSelectedClass} value={selectedClass}>
+                <SelectTrigger id="class">
+                  <SelectValue placeholder="Select your class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
+                    <SelectItem key={grade} value={String(grade)}>
+                      Class {grade}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
