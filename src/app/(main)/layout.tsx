@@ -22,6 +22,7 @@ import {
   Package2,
   PanelLeft,
   Search,
+  Shield,
 } from 'lucide-react';
 import Link from 'next/link';
 import { redirect, usePathname } from 'next/navigation';
@@ -50,7 +51,7 @@ export default function MainLayout({
 
     if (!firebaseUser) {
       // If not loading and no user, redirect to login
-      if (pathname !== '/login' && pathname !== '/signup') {
+      if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/affiliate-code') {
         redirect('/login');
       }
       return;
@@ -97,7 +98,7 @@ export default function MainLayout({
   }
   
   // Handle public pages
-  if (pathname === '/login' || pathname === '/signup') {
+  if (pathname === '/login' || pathname === '/signup' || pathname === '/affiliate-code') {
     return <>{children}</>;
   }
 
@@ -128,7 +129,7 @@ export default function MainLayout({
           </Link>
           <Link
             href="/chat"
-            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:text-foreground md:h-8 md:w-8 ${pathname === '/chat' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:text-foreground md:h-8 md:w-8 ${pathname.startsWith('/chat') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
           >
             <MessageSquare className="h-5 w-5" />
             <span className="sr-only">Chat</span>
@@ -140,6 +141,15 @@ export default function MainLayout({
             <Bell className="h-5 w-5" />
             <span className="sr-only">Updates</span>
           </Link>
+          {appUser.role === 'admin' && (
+             <Link
+                href="/admin/announcements"
+                className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:text-foreground md:h-8 md:w-8 ${pathname === '/admin/announcements' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
+              >
+                <Shield className="h-5 w-5" />
+                <span className="sr-only">Admin</span>
+              </Link>
+          )}
         </nav>
       </aside>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
@@ -152,9 +162,9 @@ export default function MainLayout({
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs">
-              <SheetHeader>
-                <SheetTitle>Navigation Menu</SheetTitle>
-              </SheetHeader>
+               <SheetHeader className="p-4 border-b">
+                 <SheetTitle>Menu</SheetTitle>
+               </SheetHeader>
               <nav className="grid gap-6 text-lg font-medium mt-4">
                 <Link
                   href="#"
@@ -165,7 +175,7 @@ export default function MainLayout({
                 </Link>
                 <Link
                   href="/chat"
-                  className={`flex items-center gap-4 px-2.5 ${pathname === '/chat' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`flex items-center gap-4 px-2.5 ${pathname.startsWith('/chat') ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   <MessageSquare className="h-5 w-5" />
                   Chat
@@ -177,6 +187,15 @@ export default function MainLayout({
                   <Bell className="h-5 w-5" />
                   Updates
                 </Link>
+                {appUser.role === 'admin' && (
+                  <Link
+                    href="/admin/announcements"
+                    className={`flex items-center gap-4 px-2.5 ${pathname === '/admin/announcements' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <Shield className="h-5 w-5" />
+                    Admin
+                  </Link>
+                )}
               </nav>
             </SheetContent>
           </Sheet>

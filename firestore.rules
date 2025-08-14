@@ -2,14 +2,34 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read and update their own user document
+  
+    // Users can read other user profiles (for DM list)
+    // but can only create/update their own profile.
     match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow create, update: if request.auth.uid == userId;
     }
 
-    // Authenticated users can read and create messages
+    // General messages are readable and writable by any authenticated user.
     match /messages/{messageId} {
       allow read, create: if request.auth != null;
+    }
+    
+    // Admins can create new updates. All users can read them.
+    match /updates/{updateId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Rules for Direct Messages
+    match /dms/{dmId} {
+      // Allow read/write on the DM document itself if the user is a member
+      allow read, create: if request.auth != null && request.auth.uid in resource.data.members;
+
+      // Allow read/write on messages within the DM if the user is a member of that DM
+      match /messages/{messageId} {
+        allow read, create: if request.auth != null && get(/databases/$(database)/documents/dms/$(dmId)).data.members.hasAny([request.auth.uid]);
+      }
     }
   }
 }

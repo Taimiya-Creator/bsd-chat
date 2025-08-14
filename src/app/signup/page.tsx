@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -18,19 +18,36 @@ import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase
 import { firebaseApp, db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const role = 'student'; // All new signups are students
 
+  useEffect(() => {
+    // Redirect if the affiliate code is not validated
+    if (searchParams.get('validated') !== 'true') {
+      router.replace('/affiliate-code');
+    }
+  }, [searchParams, router]);
+
   async function signup(e: React.FormEvent) {
     e.preventDefault();
     const auth = getAuth(firebaseApp);
+
+    if (!auth.currentUser && fullName.trim() === '') {
+        toast({
+          title: 'Signup Failed',
+          description: 'Full name is required.',
+          variant: 'destructive',
+        });
+        return;
+    }
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -65,6 +82,11 @@ export default function SignupPage() {
       });
       console.error('Signup failed:', error);
     }
+  }
+
+  // Render nothing or a loading state while redirecting
+  if (searchParams.get('validated') !== 'true') {
+    return null;
   }
 
   return (
