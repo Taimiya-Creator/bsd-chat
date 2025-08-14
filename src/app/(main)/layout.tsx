@@ -39,7 +39,7 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [firebaseUser, loadingAuth] = useAuthState(auth);
+  const [firebaseUser, loadingAuth, authError] = useAuthState(auth);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
@@ -115,14 +115,24 @@ export default function MainLayout({
   // After loading, if there's no user and we're not on a public page, let the redirect effect handle it.
   // This prevents rendering children while redirection is pending.
   if (!firebaseUser) {
-    return null;
+     if (pathname !== '/login' && pathname !== '/signup') {
+        return (
+          <div className="flex min-h-screen w-full items-center justify-center">
+            <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
+          </div>
+        );
+     }
+     return children; // For login/signup pages
   }
   
   // This should only happen if user data somehow fails to load but they are authenticated.
   if (!appUser) {
      return (
       <div className="flex min-h-screen w-full items-center justify-center">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
+         <div>
+            <p>Error loading user profile.</p>
+            <Button onClick={handleLogout}>Logout</Button>
+         </div>
       </div>
     );
   }
