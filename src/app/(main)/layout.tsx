@@ -41,71 +41,68 @@ export default function MainLayout({
 }) {
   const [firebaseUser, loadingAuth, authError] = useAuthState(auth);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-
   const pathname = usePathname();
 
   useEffect(() => {
     if (loadingAuth) {
-      // Still checking for auth state, do nothing
-      return;
+      return; // Wait until Firebase auth state is determined
     }
+
     if (!firebaseUser) {
-      // No user, redirect to login
+      // If not loading and no user, redirect to login
       if (pathname !== '/login' && pathname !== '/signup') {
         redirect('/login');
       }
-      setLoadingUser(false);
       return;
     }
 
-    const fetchUserData = async () => {
-      try {
-        const docRef = doc(db, 'users', firebaseUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setAppUser({
-            name: data.displayName || 'User',
-            email: firebaseUser.email,
-            role: data.role || 'Student',
-          });
-        } else {
-          // Fallback if user doc doesn't exist
-          setAppUser({
-            name: firebaseUser.displayName || 'User',
-            email: firebaseUser.email,
-            role: 'Student', // Default role
-          });
+    // If we have a firebaseUser but no appUser yet, fetch the user data
+    if (firebaseUser && !appUser) {
+      const fetchUserData = async () => {
+        try {
+          const docRef = doc(db, 'users', firebaseUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setAppUser({
+              name: data.displayName || 'User',
+              email: firebaseUser.email,
+              role: data.role || 'Student',
+            });
+          } else {
+            // Fallback if user doc doesn't exist
+            setAppUser({
+              name: firebaseUser.displayName || 'User',
+              email: firebaseUser.email,
+              role: 'Student', // Default role
+            });
+          }
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+            // In case of error, logout to be safe
+            handleLogout();
         }
-      } catch (error) {
-          console.error("Error fetching user data:", error);
-          setAppUser(null);
-      } finally {
-          setLoadingUser(false);
-      }
-    };
-
-    fetchUserData();
-  }, [firebaseUser, loadingAuth, pathname]);
-
+      };
+      fetchUserData();
+    }
+  }, [firebaseUser, loadingAuth, appUser, pathname]);
 
   async function handleLogout() {
     try {
       await signOut(auth);
-      // Redirect is handled by the effect
+      // The useEffect hook will handle the redirect
     } catch (error) {
       console.error('Logout failed:', error);
     }
   }
-
-  const isLoading = loadingAuth || loadingUser;
-
-  if (pathname === '/login' || pathname === '/signup') {
-    return children;
-  }
   
-  if (isLoading) {
+  // Handle public pages
+  if (pathname === '/login' || pathname === '/signup') {
+    return <>{children}</>;
+  }
+
+  // Show a loading spinner while auth state is being determined or app user is being fetched
+  if (loadingAuth || !appUser) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
@@ -113,18 +110,9 @@ export default function MainLayout({
     );
   }
 
-  if (!firebaseUser || !appUser) {
-     // If still no user after loading, let the redirect effect handle it.
-     // This prevents rendering children while redirection is pending.
-     // Also handles cases where user data fetching fails.
-     return (
-      <div className="flex min-h-screen w-full items-center justify-center">
-        <div>
-          <p>Redirecting to login...</p>
-          <Button onClick={handleLogout}>Logout</Button>
-        </div>
-      </div>
-    );
+  // If we've finished loading and there's still no user, the redirect is in progress.
+  if (!firebaseUser) {
+    return null;
   }
 
   return (
