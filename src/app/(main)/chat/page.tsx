@@ -30,7 +30,7 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const [user] = useAuthState(auth);
+  const [user, loading] = useAuthState(auth);
   const { toast } = useToast();
   const [newMessage, setNewMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,7 +57,8 @@ export default function ChatPage() {
   }, [messages]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) return; // Don't run if user is not logged in
+    
     const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
     const unsubscribe = onSnapshot(
       q,
@@ -72,7 +73,7 @@ export default function ChatPage() {
         console.error('Error fetching messages:', error);
         toast({
           title: 'Error',
-          description: 'Could not fetch messages.',
+          description: 'Could not fetch messages. Check permissions.',
           variant: 'destructive',
         });
       }
@@ -103,6 +104,10 @@ export default function ChatPage() {
     }
   };
 
+  if (loading) {
+    return null; // The layout will show a spinner, so we don't need another one here.
+  }
+  
   const sidebarContent = (
     <>
       <Card className="border-0 border-b rounded-none">

@@ -46,57 +46,54 @@ export default function MainLayout({
   const pathname = usePathname();
 
   useEffect(() => {
+    if (loadingAuth) {
+      // Still checking for auth state, do nothing
+      return;
+    }
+    if (!firebaseUser) {
+      // No user, redirect to login
+      if (pathname !== '/login' && pathname !== '/signup') {
+        redirect('/login');
+      }
+      setLoadingUser(false);
+      return;
+    }
+
     const fetchUserData = async () => {
-      if (firebaseUser) {
-        try {
-          const docRef = doc(db, 'users', firebaseUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setAppUser({
-              name: data.displayName || 'User',
-              email: firebaseUser.email,
-              role: data.role || 'Student',
-            });
-          } else {
-            // Fallback if user doc doesn't exist, use auth profile
-            setAppUser({
-              name: firebaseUser.displayName || 'User',
-              email: firebaseUser.email,
-              role: 'Student', // Default role
-            });
-          }
-        } catch (error) {
-            console.error("Error fetching user data:", error);
-            // Handle error, maybe show a toast or log out user
-            setAppUser(null);
-        } finally {
-            setLoadingUser(false);
+      try {
+        const docRef = doc(db, 'users', firebaseUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setAppUser({
+            name: data.displayName || 'User',
+            email: firebaseUser.email,
+            role: data.role || 'Student',
+          });
+        } else {
+          // Fallback if user doc doesn't exist
+          setAppUser({
+            name: firebaseUser.displayName || 'User',
+            email: firebaseUser.email,
+            role: 'Student', // Default role
+          });
         }
-      } else {
-        // No firebaseUser, so not loading user data
-        setLoadingUser(false);
-        setAppUser(null);
+      } catch (error) {
+          console.error("Error fetching user data:", error);
+          setAppUser(null);
+      } finally {
+          setLoadingUser(false);
       }
     };
 
     fetchUserData();
-  }, [firebaseUser]);
-
-  useEffect(() => {
-    // Redirect logic should run when auth state is resolved and there's no user
-    if (!loadingAuth && !firebaseUser) {
-      if (pathname !== '/login' && pathname !== '/signup') {
-        redirect('/login');
-      }
-    }
-  }, [loadingAuth, firebaseUser, pathname]);
+  }, [firebaseUser, loadingAuth, pathname]);
 
 
   async function handleLogout() {
     try {
       await signOut(auth);
-      // The redirection will be handled by the effect above
+      // Redirect is handled by the effect
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -104,6 +101,10 @@ export default function MainLayout({
 
   const isLoading = loadingAuth || loadingUser;
 
+  if (pathname === '/login' || pathname === '/signup') {
+    return children;
+  }
+  
   if (isLoading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
@@ -112,27 +113,16 @@ export default function MainLayout({
     );
   }
 
-  // After loading, if there's no user and we're not on a public page, let the redirect effect handle it.
-  // This prevents rendering children while redirection is pending.
-  if (!firebaseUser) {
-     if (pathname !== '/login' && pathname !== '/signup') {
-        return (
-          <div className="flex min-h-screen w-full items-center justify-center">
-            <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
-          </div>
-        );
-     }
-     return children; // For login/signup pages
-  }
-  
-  // This should only happen if user data somehow fails to load but they are authenticated.
-  if (!appUser) {
+  if (!firebaseUser || !appUser) {
+     // If still no user after loading, let the redirect effect handle it.
+     // This prevents rendering children while redirection is pending.
+     // Also handles cases where user data fetching fails.
      return (
       <div className="flex min-h-screen w-full items-center justify-center">
-         <div>
-            <p>Error loading user profile.</p>
-            <Button onClick={handleLogout}>Logout</Button>
-         </div>
+        <div>
+          <p>Redirecting to login...</p>
+          <Button onClick={handleLogout}>Logout</Button>
+        </div>
       </div>
     );
   }
