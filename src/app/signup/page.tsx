@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,19 +21,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { firebaseApp } from '@/lib/firebase';
-import { doc, getFirestore, setDoc } from 'firebase/firestore';
+import { firebaseApp, db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 export default function SignupPage() {
-  async function signup(formData: FormData) {
-    'use server';
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const fullName = formData.get('full-name') as string;
-    const role = formData.get('role') as string;
+  const router = useRouter();
+  const { toast } = useToast();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('student');
 
+  async function signup(e: React.FormEvent) {
+    e.preventDefault();
     const auth = getAuth(firebaseApp);
-    const db = getFirestore(firebaseApp);
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -41,25 +46,28 @@ export default function SignupPage() {
       );
       const user = userCredential.user;
 
-      // Now save user info to Firestore
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
         displayName: fullName,
         role: role,
       });
-    } catch (error) {
-      console.error('Signup failed:', error);
-      // In a real app, handle this error more gracefully
-    }
 
-    redirect('/chat');
+      router.push('/chat');
+    } catch (error: any) {
+      toast({
+        title: 'Signup Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+      console.error('Signup failed:', error);
+    }
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
-        <form action={signup}>
+        <form onSubmit={signup}>
           <CardHeader>
             <CardTitle className="text-2xl">Create an account</CardTitle>
             <CardDescription>
@@ -74,6 +82,8 @@ export default function SignupPage() {
                 name="full-name"
                 placeholder="John Doe"
                 required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -84,15 +94,29 @@ export default function SignupPage() {
                 type="email"
                 placeholder="m@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" required />
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Role</Label>
-              <Select name="role" required defaultValue="student">
+              <Select
+                name="role"
+                required
+                value={role}
+                onValueChange={setRole}
+              >
                 <SelectTrigger id="role">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>

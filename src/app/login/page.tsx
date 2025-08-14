@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,30 +15,36 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { firebaseApp } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 export default function LoginPage() {
-  async function login(formData: FormData) {
-    'use server';
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+  const router = useRouter();
+  const { toast } = useToast();
+  const [email, setEmail] = useState('student@bsd.edu');
+  const [password, setPassword] = useState('password');
+
+  async function login(e: React.FormEvent) {
+    e.preventDefault();
     const auth = getAuth(firebaseApp);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // This is where you would add your authentication logic.
-      // For now, we'll just redirect to the chat page.
-    } catch (error) {
-      // For now, we'll log the error and redirect.
-      // In a real app, you would show an error message to the user.
+      router.push('/chat');
+    } catch (error: any) {
+      toast({
+        title: 'Login Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
       console.error('Login failed:', error);
     }
-    redirect('/chat');
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
-        <form action={login}>
+        <form onSubmit={login}>
           <CardHeader>
             <CardTitle className="text-2xl">BSD Public School</CardTitle>
             <CardDescription>
@@ -52,7 +60,8 @@ export default function LoginPage() {
                 type="email"
                 placeholder="m@example.com"
                 required
-                defaultValue="student@bsd.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -62,7 +71,8 @@ export default function LoginPage() {
                 name="password"
                 type="password"
                 required
-                defaultValue="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
           </CardContent>

@@ -1,3 +1,5 @@
+'use client';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,37 +12,88 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { firebaseApp } from '@/lib/firebase';
-import { getAuth, signOut } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import {
   Bell,
-  Home,
-  LineChart,
   MessageSquare,
   Package2,
   PanelLeft,
   Search,
-  Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { redirect, usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+
+type AppUser = {
+  name: string;
+  email: string | null;
+  role: string;
+};
 
 export default function MainLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = {
-    name: 'Student Name',
-    email: 'student@bsd.edu',
-    role: 'Student',
-  };
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
 
-  async function logout() {
-    'use server';
-    const auth = getAuth(firebaseApp);
-    await signOut(auth);
-    redirect('/login');
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+      if (firebaseUser) {
+        const docRef = doc(db, 'users', firebaseUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setUser({
+            name: data.displayName || 'User',
+            email: firebaseUser.email,
+            role: data.role || 'Student',
+          });
+        } else {
+          // Fallback if user doc doesn't exist
+          setUser({
+            name: firebaseUser.displayName || 'User',
+            email: firebaseUser.email,
+            role: 'Student',
+          });
+        }
+      } else {
+        setUser(null);
+        if (pathname !== '/login' && pathname !== '/signup') {
+            redirect('/login');
+        }
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [pathname]);
+
+
+  async function handleLogout() {
+    try {
+      await signOut(auth);
+      redirect('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center">
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    // onAuthStateChanged will redirect, so we can return null or a redirect component
+    return null;
   }
 
   return (
@@ -56,14 +109,14 @@ export default function MainLayout({
           </Link>
           <Link
             href="/chat"
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:text-foreground md:h-8 md:w-8 ${pathname === '/chat' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
           >
             <MessageSquare className="h-5 w-5" />
             <span className="sr-only">Chat</span>
           </Link>
           <Link
             href="/updates"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:text-foreground md:h-8 md:w-8 ${pathname === '/updates' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
           >
             <Bell className="h-5 w-5" />
             <span className="sr-only">Updates</span>
@@ -90,14 +143,14 @@ export default function MainLayout({
                 </Link>
                 <Link
                   href="/chat"
-                  className="flex items-center gap-4 px-2.5 text-foreground"
+                  className={`flex items-center gap-4 px-2.5 ${pathname === '/chat' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   <MessageSquare className="h-5 w-5" />
                   Chat
                 </Link>
                 <Link
                   href="/updates"
-                  className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                  className={`flex items-center gap-4 px-2.5 ${pathname === '/updates' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   <Bell className="h-5 w-5" />
                   Updates
@@ -124,6 +177,7 @@ export default function MainLayout({
                   <AvatarImage
                     src="https://placehold.co/32x32.png"
                     alt="@shadcn"
+                    data-ai-hint="avatar"
                   />
                   <AvatarFallback>
                     {user.name
@@ -139,11 +193,7 @@ export default function MainLayout({
               <DropdownMenuSeparator />
               <DropdownMenuItem>{user.role}</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <form action={logout}>
-                <Button type="submit" variant="ghost" className="w-full justify-start font-normal p-0">
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
-                </Button>
-              </form>
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">Logout</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
