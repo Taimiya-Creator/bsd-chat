@@ -25,9 +25,9 @@ import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase
 import { firebaseApp, db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -188,4 +188,13 @@ export default function SignupPage() {
       </p>
     </div>
   );
+}
+
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SignupForm />
+    </Suspense>
+  )
 }
