@@ -27,6 +27,7 @@ import { Menu, Paperclip, Send } from 'lucide-react';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 
 interface Message {
   id: string;
@@ -44,7 +45,9 @@ interface ChatUser {
     online?: boolean; // You can extend this later with presence detection
 }
 
-export default function ChatPage({ params }: { params: { chatId?: string[] } }) {
+export default function ChatPage() {
+  const params = useParams();
+  const chatId = Array.isArray(params.chatId) ? params.chatId : params.chatId ? [params.chatId] : [];
   const [user, loading] = useAuthState(auth);
   const { user: appUser, isLoading: appUserLoading } = useUser();
   const { toast } = useToast();
@@ -55,11 +58,11 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
   const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
   const [chatPartner, setChatPartner] = useState<ChatUser | null>(null);
 
-  const channelId = useMemo(() => params.chatId?.[0], [params.chatId]);
-  const isDm = useMemo(() => params.chatId && params.chatId.length > 1 && params.chatId[0] === 'dm', [params.chatId]);
-  const isClassChat = useMemo(() => params.chatId && params.chatId.length === 1 && params.chatId[0].startsWith('class-'), [params.chatId]);
+  const channelId = useMemo(() => chatId?.[0], [chatId]);
+  const isDm = useMemo(() => chatId && chatId.length > 1 && chatId[0] === 'dm', [chatId]);
+  const isClassChat = useMemo(() => chatId && chatId.length === 1 && chatId[0].startsWith('class-'), [chatId]);
   
-  const dmPartnerId = useMemo(() => isDm ? params.chatId![1] : null, [isDm, params.chatId]);
+  const dmPartnerId = useMemo(() => isDm ? chatId![1] : null, [isDm, chatId]);
   const dmId = useMemo(() => {
     if (!isDm || !user) return null;
     return [user.uid, dmPartnerId].sort().join('_');
@@ -358,3 +361,5 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     </div>
   );
 }
+
+    
