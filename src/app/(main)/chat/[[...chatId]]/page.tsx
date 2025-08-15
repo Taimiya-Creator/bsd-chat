@@ -29,6 +29,8 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 interface Message {
   id: string;
   text: string;
@@ -361,5 +363,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-    
