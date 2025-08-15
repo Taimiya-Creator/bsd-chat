@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -28,65 +29,23 @@ import Link from 'next/link';
 import { redirect, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { UserProvider, useUser } from '@/hooks/use-user';
 
-type AppUser = {
-  name: string;
-  email: string | null;
-  role: string;
-};
 
-export default function MainLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [firebaseUser, loadingAuth, authError] = useAuthState(auth);
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
+function MainLayoutContent({ children }: { children: React.ReactNode }) {
+  const [firebaseUser, loadingAuth] = useAuthState(auth);
+  const { user: appUser, isLoading: loadingUser } = useUser();
   const pathname = usePathname();
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (loadingAuth) {
-      return; // Wait until Firebase auth state is determined
-    }
-
-    if (!firebaseUser) {
-      // If not loading and no user, redirect to login
-      if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/affiliate-code') {
+    if (!loadingAuth && !firebaseUser) {
+       if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/affiliate-code') {
         redirect('/login');
       }
-      return;
     }
+  }, [firebaseUser, loadingAuth, pathname]);
 
-    // If we have a firebaseUser but no appUser yet, fetch the user data
-    if (firebaseUser && !appUser) {
-      const fetchUserData = async () => {
-        try {
-          const docRef = doc(db, 'users', firebaseUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setAppUser({
-              name: data.displayName || 'User',
-              email: firebaseUser.email,
-              role: data.role || 'Student',
-            });
-          } else {
-            // Fallback if user doc doesn't exist
-            setAppUser({
-              name: firebaseUser.displayName || 'User',
-              email: firebaseUser.email,
-              role: 'Student', // Default role
-            });
-          }
-        } catch (error) {
-            console.error("Error fetching user data:", error);
-            // In case of error, logout to be safe
-            handleLogout();
-        }
-      };
-      fetchUserData();
-    }
-  }, [firebaseUser, loadingAuth, appUser, pathname]);
 
   async function handleLogout() {
     try {
@@ -94,6 +53,11 @@ export default function MainLayout({
       // The useEffect hook will handle the redirect
     } catch (error) {
       console.error('Logout failed:', error);
+       toast({
+        title: 'Error',
+        description: 'Failed to log out.',
+        variant: 'destructive',
+      });
     }
   }
   
@@ -103,7 +67,7 @@ export default function MainLayout({
   }
 
   // Show a loading spinner while auth state is being determined or app user is being fetched
-  if (loadingAuth || !appUser) {
+  if (loadingAuth || loadingUser || !appUser) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
@@ -221,7 +185,7 @@ export default function MainLayout({
                     data-ai-hint="avatar"
                   />
                   <AvatarFallback>
-                    {appUser.name
+                    {appUser.displayName
                       .split(' ')
                       .map((n) => n[0])
                       .join('')}
@@ -230,7 +194,7 @@ export default function MainLayout({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{appUser.name}</DropdownMenuLabel>
+              <DropdownMenuLabel>{appUser.displayName}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>{appUser.role}</DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -247,4 +211,17 @@ export default function MainLayout({
       </div>
     </div>
   );
+}
+
+
+export default function MainLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <UserProvider>
+      <MainLayoutContent>{children}</MainLayoutContent>
+    </UserProvider>
+  )
 }

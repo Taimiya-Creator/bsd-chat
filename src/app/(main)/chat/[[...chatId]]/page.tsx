@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/use-user';
 import { auth, db } from '@/lib/firebase';
 import {
   collection,
@@ -26,7 +27,6 @@ import { Menu, Paperclip, Send } from 'lucide-react';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 
 interface Message {
   id: string;
@@ -36,7 +36,7 @@ interface Message {
   timestamp: Timestamp;
 }
 
-interface User {
+interface ChatUser {
     id: string;
     displayName: string;
     role: string;
@@ -46,14 +46,14 @@ interface User {
 
 export default function ChatPage({ params }: { params: { chatId?: string[] } }) {
   const [user, loading] = useAuthState(auth);
-  const [appUser, setAppUser] = useState<User | null>(null);
+  const { user: appUser, isLoading: appUserLoading } = useUser();
   const { toast } = useToast();
   const [newMessage, setNewMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [chatPartner, setChatPartner] = useState<User | null>(null);
+  const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
+  const [chatPartner, setChatPartner] = useState<ChatUser | null>(null);
 
   const channelId = useMemo(() => params.chatId?.[0], [params.chatId]);
   const isDm = useMemo(() => params.chatId && params.chatId.length > 1 && params.chatId[0] === 'dm', [params.chatId]);
@@ -75,34 +75,18 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
   }, [appUser]);
 
   useEffect(() => {
-    if (loading) return;
-    if (!user) {
-        redirect('/login');
-        return;
-    }
-
-    const userDocRef = doc(db, 'users', user.uid);
-    const unsubscribeUser = onSnapshot(userDocRef, (doc) => {
-        if(doc.exists()) {
-            setAppUser({id: doc.id, ...doc.data()} as User);
-        } else {
-            // This might happen if the user document is not created yet
-            // Or if rules deny access.
-            console.log("User document not found for UID:", user.uid);
-        }
-    });
+    if (!user) return;
 
     const usersQuery = query(collection(db, "users"), where("uid", "!=", user.uid));
     const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-        const usersData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as User);
+        const usersData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as ChatUser);
         setAllUsers(usersData);
     });
 
     return () => {
-        unsubscribeUser();
         unsubscribeUsers();
     };
-  }, [user, loading]);
+  }, [user]);
 
   useEffect(() => {
     if (!dmPartnerId) {
@@ -112,7 +96,7 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     const partnerDocRef = doc(db, 'users', dmPartnerId);
     getDoc(partnerDocRef).then(docSnap => {
         if(docSnap.exists()){
-            setChatPartner({id: docSnap.id, ...docSnap.data()} as User);
+            setChatPartner({id: docSnap.id, ...docSnap.data()} as ChatUser);
         }
     })
 
@@ -128,17 +112,7 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
   }, [messages]);
 
   useEffect(() => {
-    if (!user || !channelId && !isDm) { // Handle general chat
-        const generalMessagesQuery = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
-        const unsubscribe = onSnapshot(generalMessagesQuery, (querySnapshot) => {
-            const msgs = querySnapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            })) as Message[];
-            setMessages(msgs);
-        });
-        return () => unsubscribe();
-    }
+    if (!user) return;
 
     let messagesQuery;
     if (isDm && dmId) {
@@ -176,12 +150,12 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === '' || !user) return;
+    if (newMessage.trim() === '' || !user || !appUser) return;
 
     const messageData = {
         text: newMessage,
         senderId: user.uid,
-        senderName: user.displayName || 'Anonymous', 
+        senderName: appUser.displayName || 'Anonymous', 
         timestamp: serverTimestamp(),
     };
 
@@ -220,9 +194,9 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     }
   };
 
-  if (loading || !appUser) {
+  if (loading || appUserLoading || !appUser) {
      return (
-      <div className="flex min-h-screen w-full items-center justify-center">
+      <div className="flex h-[calc(100vh-theme(spacing.16))] w-full items-center justify-center">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
       </div>
     );
@@ -256,11 +230,11 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
           {teachers.map((teacher) => (
             <Button
               asChild
-              key={teacher.uid}
-              variant={dmPartnerId === teacher.uid ? 'secondary' : 'ghost'}
+              key={teacher.id}
+              variant={dmPartnerId === teacher.id ? 'secondary' : 'ghost'}
               className="justify-start gap-2"
             >
-              <Link href={`/chat/dm/${teacher.uid}`}>
+              <Link href={`/chat/dm/${teacher.id}`}>
                 <div className="h-2 w-2 rounded-full bg-gray-500" />
                 {teacher.displayName}
               </Link>
@@ -272,11 +246,11 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
           {students.map((student) => (
             <Button
               asChild
-              key={student.uid}
-              variant={dmPartnerId === student.uid ? 'secondary' : 'ghost'}
+              key={student.id}
+              variant={dmPartnerId === student.id ? 'secondary' : 'ghost'}
               className="justify-start gap-2"
             >
-              <Link href={`/chat/dm/${student.uid}`}>
+              <Link href={`/chat/dm/${student.id}`}>
                 <div className="h-2 w-2 rounded-full bg-gray-500" />
                 {student.displayName}
               </Link>
@@ -384,5 +358,3 @@ export default function ChatPage({ params }: { params: { chatId?: string[] } }) 
     </div>
   );
 }
-
-    
