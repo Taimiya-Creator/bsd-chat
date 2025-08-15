@@ -34,15 +34,13 @@ import { UserProvider, useUser } from '@/hooks/use-user';
 
 function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const [firebaseUser, loadingAuth] = useAuthState(auth);
-  const { user: appUser, isLoading: loadingUser } = useUser();
+  const { user: appUser, isLoading: appUserLoading } = useUser();
   const pathname = usePathname();
   const { toast } = useToast();
 
   useEffect(() => {
     if (!loadingAuth && !firebaseUser) {
-       if (pathname !== '/login' && pathname !== '/signup' && pathname !== '/affiliate-code') {
-        redirect('/login');
-      }
+      redirect('/login');
     }
   }, [firebaseUser, loadingAuth, pathname]);
 
@@ -61,21 +59,14 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
     }
   }
   
-  // Handle public pages
-  if (pathname === '/login' || pathname === '/signup' || pathname === '/affiliate-code') {
-    return <>{children}</>;
-  }
-
-  // Show a loading spinner while auth state is being determined or app user is being fetched
-  if (loadingAuth || loadingUser || !appUser) {
+  if (loadingAuth || appUserLoading || !appUser) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
       </div>
     );
   }
-
-  // If we've finished loading and there's still no user, the redirect is in progress.
+  
   if (!firebaseUser) {
     return null;
   }
