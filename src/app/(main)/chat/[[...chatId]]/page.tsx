@@ -23,7 +23,7 @@ import {
   setDoc,
   getDoc,
 } from 'firebase/firestore';
-import { Menu, Paperclip, Send } from 'lucide-react';
+import { Circle, Menu, Paperclip, Send } from 'lucide-react';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Link from 'next/link';
@@ -44,7 +44,7 @@ interface ChatUser {
     displayName: string;
     role: string;
     class?: number;
-    online?: boolean; // You can extend this later with presence detection
+    online?: boolean; 
 }
 
 export default function ChatPage() {
@@ -72,7 +72,7 @@ export default function ChatPage() {
 
 
   const channels = useMemo(() => {
-    const baseChannels = ['general']; // Use slugs directly
+    const baseChannels = ['general']; 
     if (appUser?.class) {
       baseChannels.push(`class-${appUser.class}`);
     }
@@ -127,7 +127,7 @@ export default function ChatPage() {
     } else if (channelId === 'general' || !channelId) {
         messagesQuery = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
     } else {
-        return; // No valid channel selected
+        return; 
     }
 
 
@@ -158,7 +158,7 @@ export default function ChatPage() {
     if (newMessage.trim() === '' || !user || !appUser) return;
 
     const messageText = newMessage;
-    setNewMessage(''); // Clear input immediately
+    setNewMessage(''); 
 
     const messageData = {
         text: messageText,
@@ -198,7 +198,7 @@ export default function ChatPage() {
         description: 'Could not send message.',
         variant: 'destructive',
       });
-      setNewMessage(messageText); // Restore message on error
+      setNewMessage(messageText); 
     }
   };
 
@@ -215,12 +215,12 @@ export default function ChatPage() {
   
   const sidebarContent = (
     <>
-      <Card className="border-0 border-b rounded-none">
+      <Card className="border-0 border-b rounded-none bg-transparent">
         <CardHeader>
           <CardTitle>Channels</CardTitle>
         </CardHeader>
         <CardContent>
-          <nav className="grid gap-2">
+          <nav className="grid gap-1">
             {channels.map((channelSlug) => {
               const isActive = !isDm && (channelSlug === 'general' ? !channelId || channelId === 'general' : channelId === channelSlug);
               return (
@@ -233,33 +233,39 @@ export default function ChatPage() {
         </CardContent>
       </Card>
       <div className="flex-1 overflow-auto p-4">
-        <h3 className="mb-2 text-lg font-semibold">Teachers</h3>
-        <div className="grid gap-2">
+        <h3 className="mb-2 px-4 text-lg font-semibold tracking-tight">Teachers</h3>
+        <div className="grid gap-1">
           {teachers.map((teacher) => (
             <Button
               asChild
               key={teacher.id}
               variant={dmPartnerId === teacher.id ? 'secondary' : 'ghost'}
-              className="justify-start gap-2"
+              className="w-full justify-start h-10 gap-2"
             >
-              <Link href={`/chat/dm/${teacher.id}`}>
-                <div className="h-2 w-2 rounded-full bg-gray-500" />
+              <Link href={`/chat/dm/${teacher.id}`} className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={`https://placehold.co/32x32.png`} data-ai-hint="avatar" />
+                  <AvatarFallback>{teacher.displayName.charAt(0)}</AvatarFallback>
+                </Avatar>
                 {teacher.displayName}
               </Link>
             </Button>
           ))}
         </div>
-        <h3 className="mb-2 mt-4 text-lg font-semibold">Students</h3>
-        <div className="grid gap-2">
+        <h3 className="mb-2 mt-4 px-4 text-lg font-semibold tracking-tight">Students</h3>
+        <div className="grid gap-1">
           {students.map((student) => (
             <Button
               asChild
               key={student.id}
               variant={dmPartnerId === student.id ? 'secondary' : 'ghost'}
-              className="justify-start gap-2"
+              className="w-full justify-start h-10 gap-2"
             >
-              <Link href={`/chat/dm/${student.id}`}>
-                <div className="h-2 w-2 rounded-full bg-gray-500" />
+              <Link href={`/chat/dm/${student.id}`} className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={`https://placehold.co/32x32.png`} data-ai-hint="avatar" />
+                  <AvatarFallback>{student.displayName.charAt(0)}</AvatarFallback>
+                </Avatar>
                 {student.displayName}
               </Link>
             </Button>
@@ -281,7 +287,7 @@ export default function ChatPage() {
 
   return (
     <div className="grid h-full md:grid-cols-[280px_1fr]">
-      <div className="hidden md:flex flex-col border-r bg-background">
+      <div className="hidden md:flex flex-col border-r bg-muted/20">
         {sidebarContent}
       </div>
       <div className="flex flex-col h-full">
@@ -294,7 +300,7 @@ export default function ChatPage() {
                     <span className="sr-only">Open channels and users menu</span>
                 </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="flex flex-col p-0 w-full max-w-sm sm:max-w-sm">
+                <SheetContent side="left" className="flex flex-col p-0 w-full max-w-sm sm:max-w-sm bg-muted/40">
                 <SheetHeader className="p-4 border-b">
                     <SheetTitle>Menu</SheetTitle>
                 </SheetHeader>
@@ -339,7 +345,7 @@ export default function ChatPage() {
                 {msg.senderId === user?.uid && (
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
-                    <AvatarFallback>Y</AvatarFallback>
+                    <AvatarFallback>{appUser.displayName.charAt(0)}</AvatarFallback>
                   </Avatar>
                 )}
               </div>

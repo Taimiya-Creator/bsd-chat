@@ -43,7 +43,7 @@ export default function AffiliateCodePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm border-0 shadow-lg sm:border">
         <form onSubmit={handleSubmit}>
           <CardHeader>
             <CardTitle className="text-2xl">School Affiliation</CardTitle>
