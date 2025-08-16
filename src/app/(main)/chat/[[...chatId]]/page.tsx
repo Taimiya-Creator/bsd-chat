@@ -291,7 +291,7 @@ export default function ChatPage() {
                     <span className="sr-only">Open channels and users menu</span>
                 </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="flex flex-col p-0 w-full max-w-sm">
+                <SheetContent side="left" className="flex flex-col p-0 w-full max-w-sm sm:max-w-sm">
                 <SheetHeader className="p-4 border-b">
                     <SheetTitle>Menu</SheetTitle>
                 </SheetHeader>
@@ -306,31 +306,35 @@ export default function ChatPage() {
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex items-start gap-4 ${
-                  msg.senderId === user?.uid ? 'justify-end' : ''
+                className={`flex items-end gap-3 ${
+                  msg.senderId === user?.uid ? 'justify-end' : 'justify-start'
                 }`}
               >
                 {msg.senderId !== user?.uid && (
-                  <Avatar>
+                   <Avatar className="h-8 w-8">
                     <AvatarImage src={'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
                     <AvatarFallback>{msg.senderName ? msg.senderName.charAt(0) : 'A'}</AvatarFallback>
                   </Avatar>
                 )}
                 <div
-                  className={`rounded-lg p-3 max-w-xs sm:max-w-md md:max-w-lg ${
-                    msg.senderId === user?.uid
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
+                  className={`flex flex-col gap-1 max-w-[70%] sm:max-w-[60%]`}
                 >
-                  <p className="font-semibold">{msg.senderId === user?.uid ? 'You' : msg.senderName}</p>
-                  <p className="break-words">{msg.text}</p>
-                  <p className="mt-1 text-xs text-muted-foreground opacity-70">
-                    {msg.timestamp?.toDate().toLocaleTimeString()}
-                  </p>
+                    {msg.senderId !== user?.uid && <p className="text-xs text-muted-foreground px-3">{msg.senderName}</p>}
+                    <div
+                        className={`p-3 rounded-2xl ${
+                        msg.senderId === user?.uid
+                            ? 'bg-primary text-primary-foreground rounded-br-none'
+                            : 'bg-muted rounded-bl-none'
+                        }`}
+                    >
+                    <p className="break-words">{msg.text}</p>
+                    <p className="mt-1 text-xs text-right opacity-70">
+                        {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    </div>
                 </div>
                 {msg.senderId === user?.uid && (
-                  <Avatar>
+                  <Avatar className="h-8 w-8">
                     <AvatarImage src={'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
                     <AvatarFallback>Y</AvatarFallback>
                   </Avatar>
@@ -363,3 +367,5 @@ export default function ChatPage() {
     </div>
   );
 }
+
+    
