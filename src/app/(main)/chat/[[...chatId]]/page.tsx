@@ -157,8 +157,11 @@ export default function ChatPage() {
     e.preventDefault();
     if (newMessage.trim() === '' || !user || !appUser) return;
 
+    const messageText = newMessage;
+    setNewMessage(''); // Clear input immediately
+
     const messageData = {
-        text: newMessage,
+        text: messageText,
         senderId: user.uid,
         senderName: appUser.displayName || 'Anonymous', 
         timestamp: serverTimestamp(),
@@ -188,7 +191,6 @@ export default function ChatPage() {
         } else {
              await addDoc(collection(db, 'messages'), messageData);
         }
-      setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -196,12 +198,13 @@ export default function ChatPage() {
         description: 'Could not send message.',
         variant: 'destructive',
       });
+      setNewMessage(messageText); // Restore message on error
     }
   };
 
   if (loading || appUserLoading || !appUser) {
      return (
-      <div className="flex h-[calc(100vh-theme(spacing.16))] w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
       </div>
     );
@@ -277,12 +280,12 @@ export default function ChatPage() {
 
 
   return (
-    <div className="grid h-[calc(100vh-theme(spacing.16))] md:grid-cols-[280px_1fr]">
+    <div className="grid h-full md:grid-cols-[280px_1fr]">
       <div className="hidden md:flex flex-col border-r bg-background">
         {sidebarContent}
       </div>
-      <div className="flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4">
+      <div className="flex flex-col h-full">
+        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 shrink-0">
            <div className="md:hidden">
             <Sheet>
                 <SheetTrigger asChild>
@@ -344,7 +347,7 @@ export default function ChatPage() {
             <div ref={messagesEndRef} />
           </div>
         </div>
-        <div className="border-t bg-background p-4">
+        <div className="border-t bg-background p-4 shrink-0">
           <form onSubmit={handleSendMessage} className="relative">
             <Input
               placeholder="Type a message..."
@@ -367,5 +370,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-    
