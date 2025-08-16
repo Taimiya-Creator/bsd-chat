@@ -18,14 +18,11 @@ import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import {
   Bell,
-  Home,
   MessageSquare,
   Package2,
   PanelLeft,
   Search,
-  Settings,
   Shield,
-  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { redirect, usePathname } from 'next/navigation';
@@ -61,8 +58,6 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
     }
   }
   
-  const inAdminSection = pathname.startsWith('/admin');
-
   if (loadingAuth || appUserLoading || !appUser) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-background">
@@ -183,7 +178,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
               >
                 <Avatar>
                   <AvatarImage
-                    src={`https://placehold.co/32x32.png`}
+                    src={appUser.photoURL || `https://placehold.co/32x32.png`}
                     alt="User avatar"
                     data-ai-hint="avatar"
                   />

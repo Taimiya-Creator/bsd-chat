@@ -23,7 +23,7 @@ import {
   setDoc,
   getDoc,
 } from 'firebase/firestore';
-import { Circle, Menu, Paperclip, Send } from 'lucide-react';
+import { Menu, Paperclip, Send } from 'lucide-react';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import Link from 'next/link';
@@ -36,6 +36,7 @@ interface Message {
   text: string;
   senderId: string;
   senderName: string;
+  senderPhotoURL?: string;
   timestamp: Timestamp;
 }
 
@@ -44,7 +45,7 @@ interface ChatUser {
     displayName: string;
     role: string;
     class?: number;
-    online?: boolean; 
+    photoURL?: string;
 }
 
 export default function ChatPage() {
@@ -164,6 +165,7 @@ export default function ChatPage() {
         text: messageText,
         senderId: user.uid,
         senderName: appUser.displayName || 'Anonymous', 
+        senderPhotoURL: appUser.photoURL || null,
         timestamp: serverTimestamp(),
     };
 
@@ -215,7 +217,7 @@ export default function ChatPage() {
   
   const sidebarContent = (
     <>
-      <Card className="border-0 border-b rounded-none bg-transparent">
+      <Card className="border-0 border-b rounded-none bg-transparent shadow-none">
         <CardHeader>
           <CardTitle>Channels</CardTitle>
         </CardHeader>
@@ -244,7 +246,7 @@ export default function ChatPage() {
             >
               <Link href={`/chat/dm/${teacher.id}`} className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={`https://placehold.co/32x32.png`} data-ai-hint="avatar" />
+                  <AvatarImage src={teacher.photoURL || `https://placehold.co/32x32.png`} data-ai-hint="avatar" />
                   <AvatarFallback>{teacher.displayName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 {teacher.displayName}
@@ -263,7 +265,7 @@ export default function ChatPage() {
             >
               <Link href={`/chat/dm/${student.id}`} className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={`https://placehold.co/32x32.png`} data-ai-hint="avatar" />
+                  <AvatarImage src={student.photoURL || `https://placehold.co/32x32.png`} data-ai-hint="avatar" />
                   <AvatarFallback>{student.displayName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 {student.displayName}
@@ -286,11 +288,11 @@ export default function ChatPage() {
 
 
   return (
-    <div className="grid h-full md:grid-cols-[280px_1fr]">
+    <div className="grid h-screen md:grid-cols-[280px_1fr]">
       <div className="hidden md:flex flex-col border-r bg-muted/20">
         {sidebarContent}
       </div>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-screen">
         <header className="flex h-14 items-center gap-4 border-b bg-background px-4 shrink-0">
            <div className="md:hidden">
             <Sheet>
@@ -321,7 +323,7 @@ export default function ChatPage() {
               >
                 {msg.senderId !== user?.uid && (
                    <Avatar className="h-8 w-8">
-                    <AvatarImage src={'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
+                    <AvatarImage src={msg.senderPhotoURL || 'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
                     <AvatarFallback>{msg.senderName ? msg.senderName.charAt(0) : 'A'}</AvatarFallback>
                   </Avatar>
                 )}
@@ -344,7 +346,7 @@ export default function ChatPage() {
                 </div>
                 {msg.senderId === user?.uid && (
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
+                    <AvatarImage src={appUser.photoURL || 'https://placehold.co/32x32.png'} data-ai-hint="avatar" />
                     <AvatarFallback>{appUser.displayName.charAt(0)}</AvatarFallback>
                   </Avatar>
                 )}

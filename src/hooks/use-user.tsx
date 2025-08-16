@@ -13,6 +13,7 @@ export interface AppUser {
   displayName: string;
   role: string;
   class?: number;
+  photoURL?: string;
 }
 
 interface UserContextType {
@@ -52,6 +53,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
               displayName: firebaseUser.displayName || 'User',
               email: firebaseUser.email,
               role: 'student', // Default role
+              photoURL: firebaseUser.photoURL,
             });
         }
         setIsLoading(false);
