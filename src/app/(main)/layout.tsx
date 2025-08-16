@@ -156,7 +156,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs">
                <SheetHeader className="p-4 border-b">
-                 <SheetTitle>BSD Connect</SheetTitle>
+                 <SheetTitle>BSD Public School</SheetTitle>
                </SheetHeader>
               {mobileNav}
             </SheetContent>
