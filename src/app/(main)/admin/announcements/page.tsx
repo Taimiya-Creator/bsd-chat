@@ -1,10 +1,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,26 +20,11 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function AdminAnnouncementsPage() {
   const [user, loading] = useAuthState(auth);
-  const router = useRouter();
   const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const checkAdmin = async () => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
-          router.push('/chat'); // Redirect non-admins
-        }
-      }
-    };
-    if (!loading) {
-      checkAdmin();
-    }
-  }, [user, loading, router]);
-  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!user) return;
@@ -71,20 +55,14 @@ export default function AdminAnnouncementsPage() {
     }
   };
 
-
-  if (loading || !user) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-dashed border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto max-w-2xl py-8">
+    <div className="w-full max-w-2xl mx-auto">
+        <div className="flex items-center mb-4">
+          <h1 className="text-lg font-semibold md:text-2xl">Create Announcement</h1>
+        </div>
       <Card>
         <CardHeader>
-          <CardTitle>Create Announcement</CardTitle>
+          <CardTitle>New Announcement</CardTitle>
           <CardDescription>
             Post a new update for the entire school.
           </CardDescription>
